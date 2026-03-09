@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <title>知识库管理</title>
+    <link rel="stylesheet" href="/css/admin.css">
+    <style>
+        .hidden-input {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+<nav>
+    <h2>知识库管理</h2>
+    <button class="btn" onclick="location.href='/admin/qamonitor'">问答管理</button>
+</nav>
+
+<!-- 搜索栏 -->
+<div class="search-box">
+    <input id="kwInput" placeholder="搜索问题或关键词" />
+    <button class="btn" onclick="search()">查询</button>
+    <button class="btn" onclick="resetForm()">重置</button>
+    <button class="btn" onclick="openAddModal()">新增</button>
+    <button class="btn" onclick="document.getElementById('batchFile').click()">批量导入</button>
+    <button class="btn" onclick="exportData()">导出数据</button>
+    <button class="btn" onclick="deleteSelected()">删除选中</button>
+    <input type="file" id="batchFile" class="hidden-input" accept=".xlsx,.xls,.csv,.json" onchange="uploadBatch()">
+</div>
+
+<!-- 列表区域 -->
+<div id="kbList"></div>
+
+<!-- 分页 -->
+<div class="pagination" id="pagination"></div>
+
+<script>
+    const api = '/api/admin/kb';
+    const token = document.querySelector('meta[name=_csrf]').content;
+
+    let kbData = [];
+    let page = 1;
+    const size = 15;
+
+    function apiCall(url, method = 'GET', data = null) {
+        return fetch(url, {
+            method,
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': token
+            },
+            body: data ? JSON.stringify(data) : undefined
+        }).then(r => {
+            if (!r.ok) throw r;
+            return r.headers.get('content-length') === '0' || r.status === 204
+                ? null
+                : r.json();
+        });
+    }
+
+    /* ---------------- 加载数据 ---------------- */
+    function loadKb() {
+        const kw = document.getElementById('kwInput').value.trim();
+        const params = new URLSearchParams({ page, size, kw });
+        apiCall(`${api}?${params}`)
+            .then(json => {
+                kbData = json.content || json;
+                renderList(kbData);
+                renderPagination(json.totalPages || 1);
+            })
+            .catch(console.error);
+    }
+
+    loadKb();
+
+    /* ---------------- 渲染列表 ---------------- */
+    function renderList(list) {
+        const box = document.getElementById('kbList');
+        box.innerHTML = '';
+        list.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `
+                <input type="checkbox" value="${item.id}">
+                <div style="flex:1">
+                    <strong>${item.q}</strong><br>
+                    <div class="answer" id="ans-${item.id}">${item.a}</div>
+                    ${item.a.length > 120 ? `<span class="toggle" onclick="toggle(${item.id})">展开</span>` : ''}
+                </div>
+
+            `;
+            box.appendChild(card);
+        });
+    }
+
+    function escapeHtml(str) {
+        return str.replace(/'/g, "\\'").replace(/"/g, '\\"');
+    }
+
+    /* ---------------- 展开/收起 ---------------- */
+    function toggle(id) {
+        const el = document.getElementById(`ans-${id}`);
+        const tog = el.nextElementSibling;
+        if (el.classList.toggle('open')) {
+            tog.textContent = '收起';
+        } else {
+            tog.textContent = '展开';
+        }
+    }
+
+    /* ---------------- 分页 ---------------- */
+    function renderPagination(total) {
+        const pBox = document.getElementById('pagination');
+        pBox.innerHTML = '';
+        for (let i = 1; i <= total; i++) {
+            const btn = document.createElement('button');
+            btn.textContent = i;
+            if (i === page) btn.classList.add('active');
+            btn.onclick = () => { page = i; loadKb(); };
+            pBox.appendChild(btn);
+        }
+    }
+
+    /* ---------------- 搜索 & 重置 ---------------- */
+    function search() {
+        page = 1;
+        loadKb();
+    }
+
+    function resetForm() {
+        document.getElementById('kwInput').value = '';
+        page = 1;
+        loadKb();
+    }
+
+    /* ---------------- 新增/编辑 ---------------- */
+    function openAddModal() {
+        editKb();
+    }
+
+    function editKb(id = null, q = '', a = '') {
+        const qNew = prompt('请输入问题', q);
+        if (!qNew) return;
+        const aNew = prompt('请输入答案', a);
+        if (!aNew) return;
+
+        apiCall(`${api}/update/${id || ''}`, 'POST', {
+            id,
+            q: qNew.trim(),
+            a: aNew.trim()
+        }).then(() => loadKb());
+    }
+
+    /* ---------------- 删除 ---------------- */
+    function delKb(id) {
+        if (!confirm('确定删除该条记录？')) return;
+        apiCall(`${api}/delete/${id}`, 'DELETE').then(() => loadKb());
+    }
+
+    /* ---------------- 批量删除 ---------------- */
+    function deleteSelected() {
+        const ids = [...document.querySelectorAll('#kbList input:checked')]
+            .map(cb => Number(cb.value));
+        if (!ids.length) return alert('请先勾选要删除的项');
+        if (!confirm('确定删除选中的记录？')) return;
+        Promise.all(ids.map(id => apiCall(`${api}/delete/${id}`, 'DELETE')))
+            .then(() => { alert('已删除选中项'); loadKb(); })
+            .catch(console.error);
+    }
+
+    /* ---------------- 批量导入 ---------------- */
+    function uploadBatch() {
+        const file = document.getElementById('batchFile').files[0];
+        if (!file) return;
+
+        const form = new FormData();
+        form.append('file', file);
+
+        fetch('/api/admin/kb/import', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'X-CSRF-TOKEN': token },
+            body: form
+        })
+            .then(r => r.text())
+            .then(msg => {
+                alert(msg || '导入成功！');
+                loadKb();
+                document.getElementById('batchFile').value = '';
+            })
+            .catch(err => {
+                alert('导入失败：' + err.statusText);
+            });
+    }
+
+    /* ---------------- 导出 ---------------- */
+    function exportData() {
+        fetch('/api/admin/kb/export')
+            .then(r => r.blob())
+            .then(blob => {
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'kb_data.json';
+                a.click();
+            })
+            .catch(err => console.error('导出失败:', err));
+    }
+</script>
+</body>
+</html>

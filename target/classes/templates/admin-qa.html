@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <title>QA库管理</title>
+    <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+    <!-- 统一顶部导航 -->
+    <nav>
+        <h2>QA库管理</h2>
+        <button class="btn" onclick="location.href='/admin/kbmonitor'">知识库管理</button>
+    </nav>
+
+    <!-- ===== 复合搜索栏 ===== -->
+    <div class="search-box">
+        <input id="userName" placeholder="用户名" />
+        <input id="convId"   placeholder="会话ID" />
+        <label>起止时间：</label>
+        <input type="date" id="startDate" title="开始日期"/>
+        <input type="date" id="endDate" title="结束日期"/>
+        <button class="btn" onclick="search()">查询</button>
+        <button class="btn" onclick="resetForm()">重置</button>
+        <button class="btn" onclick="addSelectedToKb()">添加选中</button>
+    </div>
+
+    <!-- ===== 列表区域 ===== -->
+    <div id="qaList"></div>
+
+    <!-- ===== 分页 ===== -->
+    <div class="pagination" id="pagination"></div>
+
+    <script>
+        const api   = '/api/admin/qa';      // 拉取 QA
+        const kbApi = '/api/admin/kb';      // 批量加入知识库
+        const token = document.querySelector('meta[name=_csrf]').content;
+
+        let qaData = [];          // 原始数据
+        let page   = 1;           // 当前页
+        const size = 15;          // 每页条数
+
+        /* ---------------- 拉取 ---------------- */
+        function fetchData() {
+            const params = new URLSearchParams({
+                page, size,
+                userName : document.getElementById('userName').value.trim(),
+                convId   : document.getElementById('convId').value.trim(),
+                startDate: document.getElementById('startDate').value,
+                endDate  : document.getElementById('endDate').value
+            });
+            fetch(`${api}?${params}`, {credentials:'include'})
+                .then(r => r.json())
+                .then(json => {
+                    qaData = json.content || json; // 兼容不分页接口
+                    renderList(qaData);
+                    renderPagination(json.totalPages || 1);
+                })
+                .catch(console.error);
+        }
+
+        fetchData();
+
+        /* ---------------- 渲染列表 ---------------- */
+        function renderList(list) {
+            const box = document.getElementById('qaList');
+            box.innerHTML = '';
+            list.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+            <input type="checkbox" value="${item.id}">
+            <div style="flex:1">
+                <strong>${item.q}</strong><br>
+                <div class="answer" id="ans-${item.id}">${item.a}</div>
+                ${item.a.length > 120 ? `<span class="toggle" onclick="toggle(${item.id})">展开</span>` : ''}
+                <br><small>用户：${item.userName} | 会话：${item.chatId} | ${item.time}</small>
+            </div>
+        `;
+                box.appendChild(card);
+            });
+        }
+
+        /* ---------------- 展开 / 收起 ---------------- */
+        function toggle(id){
+            const el = document.getElementById(`ans-${id}`);
+            const tog = el.nextElementSibling;
+            if (el.classList.toggle('open')){
+                tog.textContent = '收起';
+            }else{
+                tog.textContent = '展开';
+            }
+        }
+
+        /* ---------------- 分页 ---------------- */
+        function renderPagination(total){
+            const pBox = document.getElementById('pagination');
+            pBox.innerHTML = '';
+            for (let i = 1; i <= total; i++) {
+                const btn = document.createElement('button');
+                btn.textContent = i;
+                if (i === page) btn.classList.add('active');
+                btn.onclick = () => { page = i; fetchData(); };
+                pBox.appendChild(btn);
+            }
+        }
+
+        /* ---------------- 搜索 & 重置 ---------------- */
+        function search(){
+            page = 1;
+            fetchData();
+        }
+
+        function resetForm(){
+            ['userName','convId','startDate','endDate'].forEach(id=>document.getElementById(id).value='');
+            page = 1;
+            fetchData();
+        }
+
+        /* ---------------- 批量加入知识库 ---------------- */
+        function addSelectedToKb(){
+            const ids = [...document.querySelectorAll('#qaList input:checked')]
+                .map(cb => Number(cb.value));
+            if (!ids.length) return alert('请先勾选要加入的 QA');
+            fetch(kbApi, {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type':'application/json',
+                    'X-CSRF-TOKEN':token },
+                body: JSON.stringify(ids)
+            })
+                .then(()=>{ alert('已加入知识库！'); fetchData(); })
+                .catch(console.error);
+        }
+    </script>
+</body>
+</html>

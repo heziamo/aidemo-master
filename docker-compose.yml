@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  app:
+    build: .                           # 用你的 Dockerfile
+    container_name: aidemo-app
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env                     # 读取 .env 文件中的环境变量
+    environment:
+      - DB_HOST=db                     # 服务名 = MySQL 容器名
+      - DB_PORT=3306
+      - DB_USERNAME=root
+      - DB_PASSWORD=root           # 必须改强密码！
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}        # Redis 密码
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}    # DeepSeek API Key
+      - SPRING_PROFILES_ACTIVE=        # 默认不激活额外 profile（用默认 application.properties）
+    depends_on:
+      - db
+      - redis
+    restart: on-failure
+
+  db:
+    image: mysql:8.0
+    container_name: aidemo-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: aidemo
+    #ports:
+    #  - "3306:3306"                    # 本地 Navicat 可连 localhost:3306
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+  redis:
+    image: redis:7-alpine
+    container_name: aidemo-redis
+    restart: always
+    command: redis-server --requirepass ${REDIS_PASSWORD}   # 设密码推荐，不设删掉 --requirepass ...
+    #ports:
+    #  - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+volumes:
+  mysql-data:
+  redis-data:

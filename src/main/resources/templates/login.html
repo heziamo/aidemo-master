@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>登录</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,'Noto Sans',sans-serif;}
+        body{
+            height:100vh;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            background:linear-gradient(135deg,#a8edea 0%,#fed6e3 100%);
+        }
+        .card{
+            width:100%;
+            max-width:380px;
+            background:#fff;
+            border-radius:16px;
+            padding:48px 40px 56px;
+            box-shadow:0 20px 40px rgba(0,0,0,.08);
+            transition:transform .3s;
+        }
+        .card:hover{transform:translateY(-4px);}
+        h2{margin-bottom:24px;text-align:center;color:#333;font-weight:600;}
+        .msg{margin-bottom:12px;text-align:center;font-size:14px;}
+        .msg.error{color:#e74c3c;}
+        .msg.success{color:#2ecc71;}
+        label{display:block;margin-bottom:8px;color:#555;font-size:14px;font-weight:500;}
+        input{
+            width:100%;
+            padding:12px 16px;
+            border:1px solid #ddd;
+            border-radius:8px;
+            font-size:15px;
+            transition:border-color .3s;
+        }
+        input:focus{outline:none;border-color:#a8edea;}
+        .form-row{margin-bottom:20px;}
+        button{
+            width:100%;
+            padding:14px 0;
+            background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+            border:none;
+            border-radius:8px;
+            color:#fff;
+            font-size:16px;
+            cursor:pointer;
+            transition:opacity .3s;
+        }
+        button:hover{opacity:.9;}
+        .link{margin-top:20px;text-align:center;font-size:14px;}
+        .link a{color:#667eea;text-decoration:none;}
+        .link a:hover{text-decoration:underline;}
+    </style>
+</head>
+<body>
+<div class="card">
+    <h2>登录</h2>
+    <div class="msg error" th:if="${param.error}">手机号或密码错误</div>
+    <div class="msg success" th:if="${param.logout}">已安全退出</div>
+    <div class="msg" th:text="${msg}"></div>
+
+    <form th:action="@{/login}" method="post">
+        <div class="form-row">
+            <label>手机号</label>
+            <input name="username" placeholder="请输入手机号" required/>
+        </div>
+        <div class="form-row">
+            <label>密码</label>
+            <input type="password" name="password" placeholder="请输入密码" required/>
+        </div>
+        <button type="submit">登 录</button>
+    </form>
+
+    <div class="link">
+        <a th:href="@{/register}">没有账号？立即注册</a>
+    </div>
+</div>
+</body>
+</html>

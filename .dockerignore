@@ -1,0 +1,16 @@
+# .dockerignore
+.git
+.gitignore
+README.md
+*.md
+target/*.log
+target/*.tmp
+target/maven-*
+target/surefire-reports
+target/test-classes
+target/classes  # 排除编译类，但保留最终 jar（因为 jar 在 target/ 根下）
+**/*.iml
+.idea/
+**/.mvn/
+mvnw
+mvnw.cmd
