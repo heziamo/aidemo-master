@@ -42,12 +42,14 @@ public class AnswerService {
     private final KbRepository kbRepo;
     private final StringRedisTemplate redis;
     private final RestTemplate restTemplate;
+    // 手动创建 ObjectMapper 用于 JSON 序列化/反序列化
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final String KEY_PREFIX = "kb:single:";
+    // 常量：缓存过期时间（1小时）
     private static final Duration TTL = Duration.ofHours(1);
+    // 常量：线程池，用于异步处理 API 调用
     private static final ExecutorService executorService = Executors.newFixedThreadPool(10);
-
     // 新增：用于存储对话历史的 Redis key 前缀
     private static final String CHAT_HISTORY_PREFIX = "chat:history:";
 
