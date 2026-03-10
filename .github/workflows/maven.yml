@@ -51,3 +51,11 @@ jobs:
         push: ${{ github.event_name == 'push' }}
         # 使用上面转换后的小写标签
         tags: ${{ steps.meta.outputs.image_name }}:latest
+
+    - name: Create Release and Upload Asset
+      if: startsWith(github.ref, 'refs/tags/') # 只有推送到标签时才执行
+      uses: softprops/action-gh-release@v2
+      with:
+        files: target/*.jar
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
