@@ -27,7 +27,6 @@
 
 ### 开发工具
 - **Lombok** - 减少样板代码
-- **Spring Boot DevTools** - 热部署
 - **Jackson** - JSON 序列化/反序列化
 
 ### 容器化
