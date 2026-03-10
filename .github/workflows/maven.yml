@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [ "main" ]
 
+# 关键：必须声明权限，否则无法推送镜像到 ghcr.io
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -23,16 +28,26 @@ jobs:
     - name: Build with Maven
       run: mvn -B package -DskipTests --file pom.xml
 
+    # 步骤：将仓库名转为全小写（Docker 强制要求）
+    - name: Prepare Image Metadata
+      id: meta
+      run: |
+        IMAGE_NAME=ghcr.io/${{ github.repository }}
+        echo "image_name=${IMAGE_NAME,,}" >> $GITHUB_OUTPUT
+
     - name: Log in to GitHub Container Registry
       uses: docker/login-action@v3
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
+        # 使用内置的 GITHUB_TOKEN，无需手动创建 Secret
         password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Build and push Docker image
       uses: docker/build-push-action@v6
       with:
         context: .
-        push: ${{ github.event_name == 'push' }}  # 只在 push 时推送
-        tags: ghcr.io/${{ github.repository }}:latest
+        # 仅在推送 main 分支时执行 push
+        push: ${{ github.event_name == 'push' }}
+        # 使用上面转换后的小写标签
+        tags: ${{ steps.meta.outputs.image_name }}:latest
